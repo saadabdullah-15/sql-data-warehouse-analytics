@@ -1,0 +1,40 @@
+# Ignore Python virtual environments
+.venv/
+env/
+venv/
+
+# Ignore compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore SQL Server backup or log files
+*.bak
+*.trn
+*.ldf
+*.mdf
+
+# Ignore temporary files
+*.tmp
+*.log
+*.DS_Store
+Thumbs.db
+
+# Ignore Jupyter checkpoints
+.ipynb_checkpoints/
+
+# Ignore environment/config files
+.env
+*.config
+*.ini
+*.yaml
+*.yml
+
+# Ignore datasets that are too large or private
+datasets/*.csv
+datasets/*.xlsx
+
+# Ignore draw.io autosaves
+*.drawio.bkp
+*.drawio~*

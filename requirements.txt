@@ -1,0 +1,18 @@
+# Core Python tools for data engineering and analytics
+pandas
+numpy
+sqlalchemy
+pyodbc
+pymssql
+
+# Visualization and documentation
+matplotlib
+seaborn
+
+# Data validation and testing
+great_expectations
+
+# Project management and diagrams
+diagrams
+pydot
+graphviz
