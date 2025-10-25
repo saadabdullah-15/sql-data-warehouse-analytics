@@ -1,58 +1,104 @@
-/* ========================================================================
-   Project: SQL Data Warehouse & Analytics
-   Script:  01_create_database_and_schemas.sql
-   Author:  Saad Abdullah
-   Purpose:
-       - Create a clean database environment for the project.
-       - Recreate the [DataWarehouse] database (drops if exists).
-       - Define Medallion architecture schemas: [bronze], [silver], [gold].
-   ------------------------------------------------------------------------
-   ⚠️ WARNING:
-       This script DROPS the existing [DataWarehouse] database.
-       All existing objects and data will be permanently deleted.
-       Run only in a development or test environment — never in production
-       unless you are sure you want to reset the database.
-   ======================================================================== */
+/*
+===============================================================================
+ Script:      init_database.sql
+ Project:     SQL Data Warehouse & Analytics
+ Purpose:     Reset and configure the DataWarehouse database and create the
+              Medallion architecture schemas (bronze, silver, gold).
+===============================================================================
+ WARNING:
+   - This script can drop the existing DataWarehouse database.
+   - Use only in development or other disposable environments.
+===============================================================================
+*/
 
--- Ensure execution starts from master
 USE master;
 GO
 
--- Drop the existing database if it exists
-IF DB_ID(N'DataWarehouse') IS NOT NULL
-BEGIN
-    PRINT 'Database [DataWarehouse] already exists — dropping it now...';
-    ALTER DATABASE [DataWarehouse] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
-    DROP DATABASE [DataWarehouse];
-    PRINT 'Database [DataWarehouse] dropped successfully.';
-END
-ELSE
-BEGIN
-    PRINT 'No existing [DataWarehouse] database found — proceeding with creation.';
-END
-GO
+SET NOCOUNT ON;
 
--- Create a new, clean database
-PRINT 'Creating new database [DataWarehouse]...';
-CREATE DATABASE [DataWarehouse];
-GO
+DECLARE @DatabaseName SYSNAME = N'DataWarehouse';
+DECLARE @DropExisting BIT = 1; -- Set to 0 to keep an existing database.
 
--- Switch context to the new database
-USE [DataWarehouse];
-GO
+PRINT REPLICATE('=', 72);
+PRINT FORMATMESSAGE(N'Initializing database [%s]', @DatabaseName);
+PRINT FORMATMESSAGE(N'Drop existing database: %s',
+                    CASE WHEN @DropExisting = 1 THEN N'YES' ELSE N'NO' END);
+PRINT REPLICATE('=', 72);
 
--- Create Medallion Architecture Schemas
-PRINT 'Creating schemas [bronze], [silver], and [gold]...';
+BEGIN TRY
+    IF DB_ID(@DatabaseName) IS NOT NULL
+    BEGIN
+        IF @DropExisting = 1
+        BEGIN
+            PRINT FORMATMESSAGE(N'Existing database [%s] found. Dropping...', @DatabaseName);
 
-CREATE SCHEMA [bronze] AUTHORIZATION [dbo];
-GO
+            DECLARE @DropSql NVARCHAR(MAX) =
+                N'ALTER DATABASE [' + @DatabaseName + N'] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+                  DROP DATABASE [' + @DatabaseName + N'];';
 
-CREATE SCHEMA [silver] AUTHORIZATION [dbo];
-GO
+            EXEC (@DropSql);
+            PRINT FORMATMESSAGE(N'Database [%s] dropped successfully.', @DatabaseName);
+        END
+        ELSE
+        BEGIN
+            PRINT FORMATMESSAGE(
+                N'Database [%s] already exists and drop is disabled. Initialization aborted.',
+                @DatabaseName);
+            RETURN;
+        END
+    END
+    ELSE
+    BEGIN
+        PRINT FORMATMESSAGE(N'No existing database named [%s] found. Proceeding with creation.', @DatabaseName);
+    END
 
-CREATE SCHEMA [gold] AUTHORIZATION [dbo];
-GO
+    DECLARE @CreateSql NVARCHAR(MAX) = N'CREATE DATABASE [' + @DatabaseName + N'];';
+    PRINT FORMATMESSAGE(N'Creating database [%s]...', @DatabaseName);
+    EXEC (@CreateSql);
+    PRINT FORMATMESSAGE(N'Database [%s] created.', @DatabaseName);
 
-PRINT '✅ Database [DataWarehouse] and schemas [bronze], [silver], [gold] created successfully.';
+    DECLARE @ConfigSql NVARCHAR(MAX);
+
+    SET @ConfigSql = N'ALTER DATABASE [' + @DatabaseName + N'] SET RECOVERY SIMPLE WITH NO_WAIT;';
+    EXEC (@ConfigSql);
+
+    SET @ConfigSql = N'ALTER DATABASE [' + @DatabaseName + N'] SET AUTO_UPDATE_STATISTICS_ASYNC ON;';
+    EXEC (@ConfigSql);
+
+    DECLARE @SchemaSql NVARCHAR(MAX) = N'
+        USE [' + @DatabaseName + N'];
+
+        IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = N''bronze'')
+            CREATE SCHEMA bronze AUTHORIZATION dbo;
+
+        IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = N''silver'')
+            CREATE SCHEMA silver AUTHORIZATION dbo;
+
+        IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = N''gold'')
+            CREATE SCHEMA gold AUTHORIZATION dbo;
+    ';
+
+    PRINT FORMATMESSAGE(N'Creating Medallion schemas in [%s]...', @DatabaseName);
+    EXEC (@SchemaSql);
+    PRINT N'Schemas [bronze], [silver], and [gold] verified.';
+
+    DECLARE @Completion NVARCHAR(400) =
+        FORMATMESSAGE(N'Database [%s] initialized successfully.', @DatabaseName);
+
+    PRINT REPLICATE('=', 72);
+    PRINT @Completion;
+    PRINT REPLICATE('=', 72);
+END TRY
+BEGIN CATCH
+    DECLARE @ErrorNumber INT = ERROR_NUMBER();
+    DECLARE @ErrorState INT = ERROR_STATE();
+    DECLARE @ErrorMsg NVARCHAR(4000) = ERROR_MESSAGE();
+
+    PRINT REPLICATE('!', 72);
+    PRINT N'Initialization failed.';
+    PRINT FORMATMESSAGE(N'Error %d (state %d): %s', @ErrorNumber, @ErrorState, @ErrorMsg);
+    PRINT REPLICATE('!', 72);
+
+    THROW;
+END CATCH;
 GO
--- End of script
