@@ -90,7 +90,7 @@ As additional transformations are added, group them by layer to keep the workflo
 
 - `docs/` contains empty placeholders for architecture diagrams, data catalogs, and naming conventions. Populate these as the warehouse evolves.
 - Planned next steps:
-  1. Implement bronze ingestion stored procedures that land the CSVs into staging tables.
+  1. Bronze ingestion stored procedure implemented (`scripts/bronze/load_bronze_data.sql`); extend automation or monitoring as needed.
   2. Add silver cleansing and conformance scripts with automated quality checks.
   3. Publish gold star-schema models and analytical SQL (KPIs, reporting views).
   4. Backfill documentation (data flow diagrams, glossary, and testing strategy).

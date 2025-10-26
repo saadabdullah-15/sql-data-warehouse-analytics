@@ -21,7 +21,6 @@ CREATE OR ALTER PROCEDURE bronze.load_bronze
 )
 AS
 BEGIN
-    SET NOCOUNT ON;
 
     IF @DataRoot IS NULL OR LTRIM(RTRIM(@DataRoot)) = N''
     BEGIN
@@ -69,6 +68,7 @@ BEGIN
                           CODEPAGE = ''65001'',
                           KEEPNULLS);';
         EXEC sys.sp_executesql @sql;
+        PRINT '>> Rows inserted: ' + CAST(@@ROWCOUNT AS NVARCHAR(20));
         SET @end_time = SYSUTCDATETIME();
         PRINT '>> Load Duration: ' + CAST(DATEDIFF(SECOND, @start_time, @end_time) AS NVARCHAR(10)) + ' seconds';
         PRINT '>> -------------';
@@ -85,6 +85,7 @@ BEGIN
                           CODEPAGE = ''65001'',
                           KEEPNULLS);';
         EXEC sys.sp_executesql @sql;
+        PRINT '>> Rows inserted: ' + CAST(@@ROWCOUNT AS NVARCHAR(20));
         SET @end_time = SYSUTCDATETIME();
         PRINT '>> Load Duration: ' + CAST(DATEDIFF(SECOND, @start_time, @end_time) AS NVARCHAR(10)) + ' seconds';
         PRINT '>> -------------';
@@ -101,6 +102,7 @@ BEGIN
                           CODEPAGE = ''65001'',
                           KEEPNULLS);';
         EXEC sys.sp_executesql @sql;
+        PRINT '>> Rows inserted: ' + CAST(@@ROWCOUNT AS NVARCHAR(20));
         SET @end_time = SYSUTCDATETIME();
         PRINT '>> Load Duration: ' + CAST(DATEDIFF(SECOND, @start_time, @end_time) AS NVARCHAR(10)) + ' seconds';
         PRINT '>> -------------';
@@ -121,6 +123,7 @@ BEGIN
                           CODEPAGE = ''65001'',
                           KEEPNULLS);';
         EXEC sys.sp_executesql @sql;
+        PRINT '>> Rows inserted: ' + CAST(@@ROWCOUNT AS NVARCHAR(20));
         SET @end_time = SYSUTCDATETIME();
         PRINT '>> Load Duration: ' + CAST(DATEDIFF(SECOND, @start_time, @end_time) AS NVARCHAR(10)) + ' seconds';
         PRINT '>> -------------';
@@ -137,6 +140,7 @@ BEGIN
                           CODEPAGE = ''65001'',
                           KEEPNULLS);';
         EXEC sys.sp_executesql @sql;
+        PRINT '>> Rows inserted: ' + CAST(@@ROWCOUNT AS NVARCHAR(20));
         SET @end_time = SYSUTCDATETIME();
         PRINT '>> Load Duration: ' + CAST(DATEDIFF(SECOND, @start_time, @end_time) AS NVARCHAR(10)) + ' seconds';
         PRINT '>> -------------';
@@ -153,6 +157,7 @@ BEGIN
                           CODEPAGE = ''65001'',
                           KEEPNULLS);';
         EXEC sys.sp_executesql @sql;
+        PRINT '>> Rows inserted: ' + CAST(@@ROWCOUNT AS NVARCHAR(20));
         SET @end_time = SYSUTCDATETIME();
         PRINT '>> Load Duration: ' + CAST(DATEDIFF(SECOND, @start_time, @end_time) AS NVARCHAR(10)) + ' seconds';
         PRINT '>> -------------';
