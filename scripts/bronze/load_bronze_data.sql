@@ -1,19 +1,17 @@
 /*
 ===============================================================================
  Script:      load_bronze_data.sql
- Purpose:     Bulk load CSV extracts into bronze landing tables. Based on the
-              original procedure authored by Saad Abdullah with minor polish
-              for configurability and diagnostics.
+ Purpose:     Define procedure [bronze].[load_bronze] that bulk-loads CSV files
+              from the local file system into the bronze landing tables.
 ===============================================================================
  Usage:
-     EXEC bronze.load_bronze;  -- uses default data root
-     EXEC bronze.load_bronze @DataRoot = N'C:\custom\datasets';
+     EXEC bronze.load_bronze @DataRoot = N'C:\sql\dwh_project\datasets';
 ===============================================================================
 */
 
 CREATE OR ALTER PROCEDURE bronze.load_bronze
 (
-    @DataRoot        NVARCHAR(4000) = N'C:\sql\dwh_project\datasets',
+    @DataRoot        NVARCHAR(4000) = N'C:\Users\Saad Abdullah\Desktop\data-projects\sql-data-warehouse-analytics\datasets',
     @FirstDataRow    INT            = 2,
     @FieldTerminator NVARCHAR(10)   = N','
 )
