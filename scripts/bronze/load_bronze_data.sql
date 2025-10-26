@@ -96,11 +96,6 @@ BEGIN
             EXEC sp_executesql @sql;
             SET @rowcount = @@ROWCOUNT;
 
-            SET @sql = N'UPDATE ' + @table_name + N'
-                        SET source_file_name = ''' + REPLACE(@file_path, '''', '''''') + N'''
-                      WHERE source_file_name IS NULL;';
-            EXEC sp_executesql @sql;
-
             PRINT FORMATMESSAGE(N'Rows loaded: %d | Duration: %d seconds',
                 @rowcount,
                 DATEDIFF(SECOND, @step_start, SYSUTCDATETIME()));

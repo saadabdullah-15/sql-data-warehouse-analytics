@@ -71,7 +71,7 @@ Each layer builds on the previous one, enforcing an auditable flow from ingestio
 ## SQL Scripts
 
 - `scripts/init_database.sql` - Resets the warehouse and establishes schema scaffolding; safe to rerun in dev/test environments only.
-- `scripts/bronze/create_bronze_tables.sql` - Drops and recreates raw landing tables with metadata columns.
+- `scripts/bronze/create_bronze_tables.sql` - Drops and recreates raw landing tables in the bronze schema.
 - `scripts/bronze/load_bronze_data.sql` - Stored procedure definition for bulk loading CSV files into the bronze schema.
 
 As additional transformations are added, group them by layer to keep the workflow discoverable.
