@@ -1,20 +1,21 @@
 /*
 ===============================================================================
  Script:      load_bronze_data.sql
- Purpose:     Define procedure [bronze].[load_bronze] that bulk-loads CSV files
-              from the local file system into the bronze landing tables.
+ Purpose:     Bulk load CSV extracts into bronze landing tables. Based on the
+              original procedure authored by Saad Abdullah with minor polish
+              for configurability and diagnostics.
 ===============================================================================
  Usage:
-     EXEC bronze.load_bronze @DataRoot = N'C:\sql\dwh_project\datasets';
+     EXEC bronze.load_bronze;  -- uses default data root
+     EXEC bronze.load_bronze @DataRoot = N'C:\custom\datasets';
 ===============================================================================
 */
 
 CREATE OR ALTER PROCEDURE bronze.load_bronze
 (
-    @DataRoot         NVARCHAR(4000),
-    @FirstDataRow     INT          = 2,
-    @FieldTerminator  NVARCHAR(10) = N',',
-    @RowTerminator    NVARCHAR(10) = N'0x0a'
+    @DataRoot        NVARCHAR(4000) = N'C:\sql\dwh_project\datasets',
+    @FirstDataRow    INT            = 2,
+    @FieldTerminator NVARCHAR(10)   = N','
 )
 AS
 BEGIN
@@ -22,111 +23,155 @@ BEGIN
 
     IF @DataRoot IS NULL OR LTRIM(RTRIM(@DataRoot)) = N''
     BEGIN
-        THROW 50010, N'Parameter @DataRoot cannot be null or empty.', 1;
+        THROW 50030, N'@DataRoot cannot be null or empty.', 1;
     END;
 
-    IF RIGHT(@DataRoot, 1) IN ('\', '/')
+    IF RIGHT(@DataRoot, 1) IN (N'\', N'/')
     BEGIN
         SET @DataRoot = LEFT(@DataRoot, LEN(@DataRoot) - 1);
     END;
 
-    DECLARE @batch_start DATETIME2(0) = SYSUTCDATETIME();
+    DECLARE @CRM_Cust NVARCHAR(4000) = @DataRoot + N'\source_crm\cust_info.csv';
+    DECLARE @CRM_Prd  NVARCHAR(4000) = @DataRoot + N'\source_crm\prd_info.csv';
+    DECLARE @CRM_Sls  NVARCHAR(4000) = @DataRoot + N'\source_crm\sales_details.csv';
+    DECLARE @ERP_Loc  NVARCHAR(4000) = @DataRoot + N'\source_erp\loc_a101.csv';
+    DECLARE @ERP_Cust NVARCHAR(4000) = @DataRoot + N'\source_erp\cust_az12.csv';
+    DECLARE @ERP_Cat  NVARCHAR(4000) = @DataRoot + N'\source_erp\px_cat_g1v2.csv';
 
-    PRINT REPLICATE('=', 80);
-    PRINT FORMATMESSAGE(N'Bronze load started at %s (UTC)', CONVERT(VARCHAR(30), @batch_start, 126));
-    PRINT FORMATMESSAGE(N'Data root: %s', @DataRoot);
-    PRINT REPLICATE('=', 80);
-
-    DECLARE @targets TABLE
-    (
-        seq       INT IDENTITY(1,1) PRIMARY KEY,
-        table_name NVARCHAR(256),
-        file_path  NVARCHAR(4000)
-    );
-
-    INSERT INTO @targets (table_name, file_path)
-    VALUES
-        (N'bronze.crm_cust_info',    @DataRoot + N'\source_crm\cust_info.csv'),
-        (N'bronze.crm_prd_info',     @DataRoot + N'\source_crm\prd_info.csv'),
-        (N'bronze.crm_sales_details',@DataRoot + N'\source_crm\sales_details.csv'),
-        (N'bronze.erp_loc_a101',     @DataRoot + N'\source_erp\loc_a101.csv'),
-        (N'bronze.erp_cust_az12',    @DataRoot + N'\source_erp\cust_az12.csv'),
-        (N'bronze.erp_px_cat_g1v2',  @DataRoot + N'\source_erp\px_cat_g1v2.csv');
-
-    DECLARE @table_name NVARCHAR(256);
-    DECLARE @file_path NVARCHAR(4000);
-    DECLARE @step_start DATETIME2(0);
+    DECLARE @batch_start_time DATETIME2(0);
+    DECLARE @batch_end_time DATETIME2(0);
+    DECLARE @start_time DATETIME2(0);
+    DECLARE @end_time DATETIME2(0);
     DECLARE @sql NVARCHAR(MAX);
-    DECLARE @rowcount INT;
-
-    DECLARE load_cursor CURSOR LOCAL FAST_FORWARD FOR
-        SELECT table_name, file_path FROM @targets ORDER BY seq;
 
     BEGIN TRY
-        OPEN load_cursor;
+        SET @batch_start_time = SYSUTCDATETIME();
 
-        FETCH NEXT FROM load_cursor INTO @table_name, @file_path;
-        WHILE @@FETCH_STATUS = 0
-        BEGIN
-            IF OBJECT_ID(@table_name, N'U') IS NULL
-            BEGIN
-                THROW 50011, FORMATMESSAGE(N'Table %s does not exist. Run create_bronze_tables.sql first.', @table_name), 1;
-            END;
+        PRINT REPLICATE('=', 48);
+        PRINT 'Loading Bronze Layer';
+        PRINT REPLICATE('=', 48);
 
-            SET @step_start = SYSUTCDATETIME();
-            PRINT REPLICATE('-', 80);
-            PRINT FORMATMESSAGE(N'Truncating %s', @table_name);
+        PRINT '------------------------------------------------';
+        PRINT 'Loading CRM Tables';
+        PRINT '------------------------------------------------';
 
-            SET @sql = N'TRUNCATE TABLE ' + @table_name + N';';
-            EXEC sp_executesql @sql;
+        SET @start_time = SYSUTCDATETIME();
+        PRINT '>> Truncating Table: bronze.crm_cust_info';
+        TRUNCATE TABLE bronze.crm_cust_info;
+        PRINT '>> Inserting Data Into: bronze.crm_cust_info';
+        SET @sql = N'BULK INSERT bronze.crm_cust_info FROM ''' + REPLACE(@CRM_Cust, '''', '''''') + N'''
+                    WITH (FIRSTROW = ' + CAST(@FirstDataRow AS NVARCHAR(10)) + N',
+                          FIELDTERMINATOR = ''' + REPLACE(@FieldTerminator, '''', '''''') + N''',
+                          ROWTERMINATOR = ''0x0a'',
+                          TABLOCK,
+                          CODEPAGE = ''65001'',
+                          KEEPNULLS);';
+        EXEC sys.sp_executesql @sql;
+        SET @end_time = SYSUTCDATETIME();
+        PRINT '>> Load Duration: ' + CAST(DATEDIFF(SECOND, @start_time, @end_time) AS NVARCHAR(10)) + ' seconds';
+        PRINT '>> -------------';
 
-            PRINT FORMATMESSAGE(N'Bulk loading %s from %s', @table_name, @file_path);
+        SET @start_time = SYSUTCDATETIME();
+        PRINT '>> Truncating Table: bronze.crm_prd_info';
+        TRUNCATE TABLE bronze.crm_prd_info;
+        PRINT '>> Inserting Data Into: bronze.crm_prd_info';
+        SET @sql = N'BULK INSERT bronze.crm_prd_info FROM ''' + REPLACE(@CRM_Prd, '''', '''''') + N'''
+                    WITH (FIRSTROW = ' + CAST(@FirstDataRow AS NVARCHAR(10)) + N',
+                          FIELDTERMINATOR = ''' + REPLACE(@FieldTerminator, '''', '''''') + N''',
+                          ROWTERMINATOR = ''0x0a'',
+                          TABLOCK,
+                          CODEPAGE = ''65001'',
+                          KEEPNULLS);';
+        EXEC sys.sp_executesql @sql;
+        SET @end_time = SYSUTCDATETIME();
+        PRINT '>> Load Duration: ' + CAST(DATEDIFF(SECOND, @start_time, @end_time) AS NVARCHAR(10)) + ' seconds';
+        PRINT '>> -------------';
 
-            SET @sql = N'BULK INSERT ' + @table_name + N'
-                FROM ''' + REPLACE(@file_path, '''', '''''') + N'''
-                WITH (
-                    FIRSTROW = ' + CAST(@FirstDataRow AS NVARCHAR(10)) + N',
-                    FIELDTERMINATOR = ''' + REPLACE(@FieldTerminator, '''', '''''') + N''',
-                    ROWTERMINATOR = ''' + REPLACE(@RowTerminator, '''', '''''') + N''',
-                    TABLOCK,
-                    CODEPAGE = ''65001'',
-                    KEEPNULLS
-                );';
+        SET @start_time = SYSUTCDATETIME();
+        PRINT '>> Truncating Table: bronze.crm_sales_details';
+        TRUNCATE TABLE bronze.crm_sales_details;
+        PRINT '>> Inserting Data Into: bronze.crm_sales_details';
+        SET @sql = N'BULK INSERT bronze.crm_sales_details FROM ''' + REPLACE(@CRM_Sls, '''', '''''') + N'''
+                    WITH (FIRSTROW = ' + CAST(@FirstDataRow AS NVARCHAR(10)) + N',
+                          FIELDTERMINATOR = ''' + REPLACE(@FieldTerminator, '''', '''''') + N''',
+                          ROWTERMINATOR = ''0x0a'',
+                          TABLOCK,
+                          CODEPAGE = ''65001'',
+                          KEEPNULLS);';
+        EXEC sys.sp_executesql @sql;
+        SET @end_time = SYSUTCDATETIME();
+        PRINT '>> Load Duration: ' + CAST(DATEDIFF(SECOND, @start_time, @end_time) AS NVARCHAR(10)) + ' seconds';
+        PRINT '>> -------------';
 
-            EXEC sp_executesql @sql;
-            SET @rowcount = @@ROWCOUNT;
+        PRINT '------------------------------------------------';
+        PRINT 'Loading ERP Tables';
+        PRINT '------------------------------------------------';
 
-            PRINT FORMATMESSAGE(N'Rows loaded: %d | Duration: %d seconds',
-                @rowcount,
-                DATEDIFF(SECOND, @step_start, SYSUTCDATETIME()));
+        SET @start_time = SYSUTCDATETIME();
+        PRINT '>> Truncating Table: bronze.erp_loc_a101';
+        TRUNCATE TABLE bronze.erp_loc_a101;
+        PRINT '>> Inserting Data Into: bronze.erp_loc_a101';
+        SET @sql = N'BULK INSERT bronze.erp_loc_a101 FROM ''' + REPLACE(@ERP_Loc, '''', '''''') + N'''
+                    WITH (FIRSTROW = ' + CAST(@FirstDataRow AS NVARCHAR(10)) + N',
+                          FIELDTERMINATOR = ''' + REPLACE(@FieldTerminator, '''', '''''') + N''',
+                          ROWTERMINATOR = ''0x0a'',
+                          TABLOCK,
+                          CODEPAGE = ''65001'',
+                          KEEPNULLS);';
+        EXEC sys.sp_executesql @sql;
+        SET @end_time = SYSUTCDATETIME();
+        PRINT '>> Load Duration: ' + CAST(DATEDIFF(SECOND, @start_time, @end_time) AS NVARCHAR(10)) + ' seconds';
+        PRINT '>> -------------';
 
-            FETCH NEXT FROM load_cursor INTO @table_name, @file_path;
-        END
+        SET @start_time = SYSUTCDATETIME();
+        PRINT '>> Truncating Table: bronze.erp_cust_az12';
+        TRUNCATE TABLE bronze.erp_cust_az12;
+        PRINT '>> Inserting Data Into: bronze.erp_cust_az12';
+        SET @sql = N'BULK INSERT bronze.erp_cust_az12 FROM ''' + REPLACE(@ERP_Cust, '''', '''''') + N'''
+                    WITH (FIRSTROW = ' + CAST(@FirstDataRow AS NVARCHAR(10)) + N',
+                          FIELDTERMINATOR = ''' + REPLACE(@FieldTerminator, '''', '''''') + N''',
+                          ROWTERMINATOR = ''0x0a'',
+                          TABLOCK,
+                          CODEPAGE = ''65001'',
+                          KEEPNULLS);';
+        EXEC sys.sp_executesql @sql;
+        SET @end_time = SYSUTCDATETIME();
+        PRINT '>> Load Duration: ' + CAST(DATEDIFF(SECOND, @start_time, @end_time) AS NVARCHAR(10)) + ' seconds';
+        PRINT '>> -------------';
 
-        CLOSE load_cursor;
-        DEALLOCATE load_cursor;
+        SET @start_time = SYSUTCDATETIME();
+        PRINT '>> Truncating Table: bronze.erp_px_cat_g1v2';
+        TRUNCATE TABLE bronze.erp_px_cat_g1v2;
+        PRINT '>> Inserting Data Into: bronze.erp_px_cat_g1v2';
+        SET @sql = N'BULK INSERT bronze.erp_px_cat_g1v2 FROM ''' + REPLACE(@ERP_Cat, '''', '''''') + N'''
+                    WITH (FIRSTROW = ' + CAST(@FirstDataRow AS NVARCHAR(10)) + N',
+                          FIELDTERMINATOR = ''' + REPLACE(@FieldTerminator, '''', '''''') + N''',
+                          ROWTERMINATOR = ''0x0a'',
+                          TABLOCK,
+                          CODEPAGE = ''65001'',
+                          KEEPNULLS);';
+        EXEC sys.sp_executesql @sql;
+        SET @end_time = SYSUTCDATETIME();
+        PRINT '>> Load Duration: ' + CAST(DATEDIFF(SECOND, @start_time, @end_time) AS NVARCHAR(10)) + ' seconds';
+        PRINT '>> -------------';
 
-        DECLARE @batch_end DATETIME2(0) = SYSUTCDATETIME();
-        PRINT REPLICATE('=', 80);
-        PRINT FORMATMESSAGE(N'Bronze load completed at %s (UTC)', CONVERT(VARCHAR(30), @batch_end, 126));
-        PRINT FORMATMESSAGE(N'Total duration: %d seconds', DATEDIFF(SECOND, @batch_start, @batch_end));
-        PRINT REPLICATE('=', 80);
+        SET @batch_end_time = SYSUTCDATETIME();
+        PRINT '==========================================';
+        PRINT 'Loading Bronze Layer is Completed';
+        PRINT '   - Total Load Duration: ' + CAST(DATEDIFF(SECOND, @batch_start_time, @batch_end_time) AS NVARCHAR(10)) + ' seconds';
+        PRINT '==========================================';
     END TRY
     BEGIN CATCH
-        IF CURSOR_STATUS('local', 'load_cursor') >= -1
-        BEGIN
-            CLOSE load_cursor;
-            DEALLOCATE load_cursor;
-        END;
+        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
+        DECLARE @ErrorNumber INT = ERROR_NUMBER();
+        DECLARE @ErrorState  INT = ERROR_STATE();
 
-        DECLARE @err NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @errnum INT = ERROR_NUMBER();
-        DECLARE @errstate INT = ERROR_STATE();
-
-        PRINT REPLICATE('!', 80);
-        PRINT N'Error occurred during bronze load.';
-        PRINT FORMATMESSAGE(N'Error %d (state %d): %s', @errnum, @errstate, @err);
-        PRINT REPLICATE('!', 80);
+        PRINT '==========================================';
+        PRINT 'ERROR OCCURRED DURING LOADING BRONZE LAYER';
+        PRINT 'Error Number: ' + CAST(@ErrorNumber AS NVARCHAR(10));
+        PRINT 'Error State : ' + CAST(@ErrorState AS NVARCHAR(10));
+        PRINT 'Error Message: ' + @ErrorMessage;
+        PRINT '==========================================';
 
         THROW;
     END CATCH;

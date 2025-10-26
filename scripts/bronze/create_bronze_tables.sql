@@ -15,9 +15,6 @@
 USE DataWarehouse;
 GO
 
-USE DataWarehouse;
-GO
-
 SET NOCOUNT ON;
 
 IF SCHEMA_ID(N'bronze') IS NULL
