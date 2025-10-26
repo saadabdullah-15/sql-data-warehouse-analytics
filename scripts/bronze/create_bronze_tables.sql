@@ -67,12 +67,12 @@ CREATE TABLE bronze.crm_sales_details
     sls_ord_num  NVARCHAR(50)  NULL,
     sls_prd_key  NVARCHAR(50)  NULL,
     sls_cust_id  INT           NULL,
-    sls_order_dt DATE          NULL,
-    sls_ship_dt  DATE          NULL,
-    sls_due_dt   DATE          NULL,
-    sls_sales    DECIMAL(18,2) NULL,
+    sls_order_dt INT           NULL,
+    sls_ship_dt  INT           NULL,
+    sls_due_dt   INT           NULL,
+    sls_sales    INT           NULL,
     sls_quantity INT           NULL,
-    sls_price    DECIMAL(18,2) NULL
+    sls_price    INT           NULL
 );
 GO
 

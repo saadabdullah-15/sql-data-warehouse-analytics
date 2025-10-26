@@ -5,9 +5,13 @@
               from the local file system into the bronze landing tables.
 ===============================================================================
  Usage:
-     EXEC bronze.load_bronze @DataRoot = N'C:\sql\dwh_project\datasets';
+     EXEC bronze.load_bronze; -- uses repo datasets path
+     EXEC bronze.load_bronze @DataRoot = N'C:\custom\datasets';
 ===============================================================================
 */
+
+USE DataWarehouse;
+GO
 
 CREATE OR ALTER PROCEDURE bronze.load_bronze
 (
