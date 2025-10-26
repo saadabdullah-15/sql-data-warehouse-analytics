@@ -58,11 +58,11 @@ Each layer builds on the previous one, enforcing an auditable flow from ingestio
 3. **Create landing tables**
    - Run `scripts/bronze/create_bronze_tables.sql` to rebuild the raw staging tables with the latest metadata definitions.
 4. **Load raw data**
-   - Execute the stored procedure defined in `scripts/bronze/load_bronze_data.sql`, for example:
+   - Execute the stored procedure defined in `scripts/bronze/load_bronze_data.sql`:
      ```sql
-     EXEC bronze.load_bronze @DataRoot = N'C:\sql\dwh_project\datasets';
+     EXEC bronze.load_bronze;
      ```
-   - Adjust the `@DataRoot` to match your local path to the `datasets/` folder.
+     *(Override `@DataRoot` if your datasets directory lives elsewhere.)*
 5. **Iterate on transformations**
    - Build silver and gold transformations in new scripts under `scripts/silver/` and `scripts/gold/`, documenting lineage and business logic in `docs/` as you go.
 
