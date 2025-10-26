@@ -50,15 +50,21 @@ Each layer builds on the previous one, enforcing an auditable flow from ingestio
    ```
 2. **Create or refresh the warehouse**
    - Open `scripts/init_database.sql` in SSMS and execute it, or run:
-     ```bash
-     sqlcmd -S <server-name> -i scripts\init_database.sql
+     ```powershell
+     sqlcmd -S .\SQLEXPRESS -i scripts\init_database.sql
      ```
+     *(Replace the server with your instance name if different.)*
    - The script drops any existing `DataWarehouse` database, recreates it, and provisions `bronze`, `silver`, and `gold` schemas.
-3. **Load raw data**
-   - Stage CSVs from `datasets/source_*` into the `bronze` schema using your preferred method. The stored procedure stub at `scripts/bronze/load_bronze_procedure.sql` is ready for implementation.
-4. **Iterate on transformations**
-   - Build silver and gold transformations in new scripts under `scripts/silver/` and `scripts/gold/`.
-   - Document lineage and business logic in `docs/` as you go.
+3. **Create landing tables**
+   - Run `scripts/bronze/create_bronze_tables.sql` to rebuild the raw staging tables with the latest metadata definitions.
+4. **Load raw data**
+   - Execute the stored procedure defined in `scripts/bronze/load_bronze_data.sql`, for example:
+     ```sql
+     EXEC bronze.load_bronze @DataRoot = N'C:\sql\dwh_project\datasets';
+     ```
+   - Adjust the `@DataRoot` to match your local path to the `datasets/` folder.
+5. **Iterate on transformations**
+   - Build silver and gold transformations in new scripts under `scripts/silver/` and `scripts/gold/`, documenting lineage and business logic in `docs/` as you go.
 
 ---
 
