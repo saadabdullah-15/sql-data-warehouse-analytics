@@ -1,12 +1,12 @@
 /*
 ===============================================================================
  Script:      create_bronze_tables.sql
- Purpose:     Rebuild raw landing tables in the [bronze] schema. Existing tables
-              are dropped to ensure the structure matches the staging CSV files.
+ Project:     SQL Data Warehouse & Analytics
+ Purpose:     Rebuild raw landing tables in the [bronze] schema to stay aligned
+              with the upstream staging CSV files.
 ===============================================================================
  Notes:
-   - Run after `scripts/init_database.sql` to guarantee the [bronze] schema
-     exists.
+   - Run after `scripts/init_database.sql` to guarantee the [bronze] schema exists.
    - Tables include metadata columns to capture ingestion lineage.
    - Adjust data types if upstream sources evolve.
 ===============================================================================
@@ -16,6 +16,7 @@ USE DataWarehouse;
 GO
 
 SET NOCOUNT ON;
+GO
 
 IF SCHEMA_ID(N'bronze') IS NULL
 BEGIN
