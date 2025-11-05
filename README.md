@@ -16,7 +16,7 @@ An end-to-end SQL Server data warehouse sandbox that demonstrates the Medallion 
 ## Architecture Overview
 
 - **Bronze**: Land raw CSV files from ERP (`datasets/source_erp`) and CRM (`datasets/source_crm`) systems with zero transformation.
-- **Silver**: Prepare conformed, quality-controlled entities. (Scripts planned; checkpoint currently empty.)
+- **Silver**: Prepare conformed, quality-controlled entities rebuilt from bronze tables via curated scripts under `scripts/silver/`.
 - **Gold**: Deliver star-schema style dimensional models and downstream reporting views. (Planned.)
 
 Each layer builds on the previous one, enforcing an auditable flow from ingestion to analytics.
@@ -63,8 +63,16 @@ Each layer builds on the previous one, enforcing an auditable flow from ingestio
      EXEC bronze.load_bronze;
      ```
      *(Override `@DataRoot` if your datasets directory lives elsewhere.)*
-5. **Iterate on transformations**
-   - Build silver and gold transformations in new scripts under `scripts/silver/` and `scripts/gold/`, documenting lineage and business logic in `docs/` as you go.
+5. **Create curated tables**
+   - Run `scripts/silver/create_silver_tables.sql` to provision conformed entities in the silver schema.
+6. **Promote data to silver**
+   - Execute the stored procedure defined in `scripts/silver/load_silver_data.sql`:
+     ```sql
+     EXEC silver.load_silver;
+     ```
+     *(Assumes the bronze layer has been loaded in the default database.)*
+7. **Iterate on transformations**
+   - Extend silver cleansing logic and begin building gold models in `scripts/gold/`, documenting lineage and business logic in `docs/`.
 
 ---
 
@@ -73,6 +81,8 @@ Each layer builds on the previous one, enforcing an auditable flow from ingestio
 - `scripts/init_database.sql` - Resets the warehouse and establishes schema scaffolding; safe to rerun in dev/test environments only.
 - `scripts/bronze/create_bronze_tables.sql` - Drops and recreates raw landing tables in the bronze schema.
 - `scripts/bronze/load_bronze_data.sql` - Stored procedure definition for bulk loading CSV files into the bronze schema.
+- `scripts/silver/create_silver_tables.sql` - Rebuilds curated tables in the silver schema.
+- `scripts/silver/load_silver_data.sql` - Stored procedure that standardizes and promotes bronze data into the silver layer.
 
 As additional transformations are added, group them by layer to keep the workflow discoverable.
 
@@ -91,7 +101,7 @@ As additional transformations are added, group them by layer to keep the workflo
 - `docs/` contains empty placeholders for architecture diagrams, data catalogs, and naming conventions. Populate these as the warehouse evolves.
 - Planned next steps:
   1. Bronze ingestion stored procedure implemented (`scripts/bronze/load_bronze_data.sql`); extend automation or monitoring as needed.
-  2. Add silver cleansing and conformance scripts with automated quality checks.
+  2. Expand silver cleansing rules and add automated quality checks (Great Expectations or custom T-SQL).
   3. Publish gold star-schema models and analytical SQL (KPIs, reporting views).
   4. Backfill documentation (data flow diagrams, glossary, and testing strategy).
 
