@@ -1,12 +1,16 @@
 /*
 ===============================================================================
  Script:      load_bronze_data.sql
+ Project:     SQL Data Warehouse & Analytics
  Purpose:     Define procedure [bronze].[load_bronze] that bulk-loads CSV files
               from the local file system into the bronze landing tables.
 ===============================================================================
  Usage:
-     EXEC bronze.load_bronze; -- uses repo datasets path
-     EXEC bronze.load_bronze @DataRoot = N'C:\custom\datasets';
+   EXEC bronze.load_bronze; -- uses repo datasets path
+   EXEC bronze.load_bronze @DataRoot = N'C:\custom\datasets';
+ Notes:
+   - Override parameters to point at alternate dataset roots or delimiters.
+   - Emits per-table timings and row counts for quick load diagnostics.
 ===============================================================================
 */
 
