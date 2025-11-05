@@ -5,7 +5,7 @@
  Purpose:     Reset and configure the DataWarehouse database and create the
               Medallion architecture schemas (bronze, silver, gold).
 ===============================================================================
- WARNING:
+ Warnings:
    - The script drops the existing [DataWarehouse] database if it is found.
    - Run only in development/test environments where this is acceptable.
 ===============================================================================
