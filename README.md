@@ -1,109 +1,90 @@
 # SQL Data Warehouse & Analytics
 
-An end-to-end SQL Server data warehouse sandbox that demonstrates the Medallion (bronze -> silver -> gold) pattern, ELT best practices, and portfolio-ready analytics workflows. The repository pairs raw source extracts with reproducible SQL scripts so the environment can be rebuilt from scratch.
+An end-to-end SQL Server warehouse sandbox that follows the Medallion (bronze -> silver -> gold) pattern. The repository bundles source CSV extracts with repeatable SQL scripts so the environment can be rebuilt, audited, and extended for portfolio storytelling or deeper experimentation.
 
 ---
 
-## Project Highlights
+## Current Progress
 
-- Resettable SQL Server environment that provisions schemas for each Medallion layer.
-- Realistic ERP and CRM extracts under `datasets/` for practicing ingestion patterns.
-- Clear separation between raw ingestion, curation, and presentation-ready models.
-- Optional Python tooling (`requirements.txt`) for automation, validation, and visualization.
+- **Environment reset** – `scripts/init_database.sql` drops and recreates the `DataWarehouse` database, provisions the bronze/silver/gold schemas, and guards against accidental production use.
+- **Bronze ingestion** – `scripts/bronze/create_bronze_tables.sql` rebuilds landing tables, while `scripts/bronze/load_bronze_data.sql` bulk-loads CRM and ERP CSVs with configurable file roots, UTF-8 handling, and runtime logging.
+- **Silver curation** – `scripts/silver/create_silver_tables.sql` defines analytics-friendly tables (surrogate keys, canonical IDs, helper indexes). `scripts/silver/load_silver_data.sql` standardizes dates and gender values, enriches products with ERP categories, resolves surrogate keys, and tracks rejects in `silver.crm_sales_details_rejects`.
+- **Datasets & docs** – `datasets/` includes reproducible CRM/ERP extracts. `docs/` and `tests/` are scaffolded for future documentation, lineage diagrams, and automated quality checks.
 
 ---
 
-## Architecture Overview
+## Pipeline Status
 
-- **Bronze**: Land raw CSV files from ERP (`datasets/source_erp`) and CRM (`datasets/source_crm`) systems with zero transformation.
-- **Silver**: Prepare conformed, quality-controlled entities rebuilt from bronze tables via curated scripts under `scripts/silver/`.
-- **Gold**: Deliver star-schema style dimensional models and downstream reporting views. (Planned.)
-
-Each layer builds on the previous one, enforcing an auditable flow from ingestion to analytics.
+| Layer | Status | Notes |
+| --- | --- | --- |
+| Bronze | Complete | Automated bulk load procedure (`bronze.load_bronze`) with parameterized paths and load telemetry. |
+| Silver | Complete | Stored procedure (`silver.load_silver`) performs canonicalization, enrichment, rejects capture, and row-count reporting. |
+| Gold | Planned | Star-schema models, aggregate views, and KPI reporting still to be designed. |
 
 ---
 
 ## Repository Layout
 
-- `datasets/source_crm/`: Customer, product, and sales detail extracts (CSV).
-- `datasets/source_erp/`: ERP master data extracts (CSV).
-- `docs/`: Diagram and documentation placeholders ready for Draw.io outputs and Markdown notes.
-- `scripts/`: SQL Server build scripts. Includes `init_database.sql` plus layer-specific folders.
-- `tests/`: Reserved for data quality checks and regression tests (currently empty).
+- `datasets/source_crm/` – Customer, product, and sales detail extracts (CSV).
+- `datasets/source_erp/` – ERP customer, location, and product category reference data (CSV).
+- `docs/` – Placeholders for architecture diagrams, data catalog, and naming standards.
+- `scripts/` – SQL Server build + load scripts organised by Medallion layer, plus `init_database.sql`.
+- `tests/` – Reserved for data quality assertions or integration tests (currently empty).
+- `requirements.txt` – Optional Python dependencies for orchestration, validation, or visualization.
 
 ---
 
 ## Prerequisites
 
-- SQL Server (Express or Developer edition) and either SQL Server Management Studio (SSMS) or a `sqlcmd`-compatible CLI.
-- Access to the CSV files in `datasets/`.
-- Optional: Python 3.9+ with the packages listed in `requirements.txt` for automating loads, validations, or visualization.
+- SQL Server Express/Developer (or compatible) plus SSMS or a `sqlcmd`-capable CLI.
+- Local access to the CSV files under `datasets/`.
+- Optional: Python 3.9+ with packages from `requirements.txt` if you want to orchestrate or validate outside SQL Server.
 
 ---
 
-## Quickstart
+## Run the Pipeline Locally
 
-1. **Clone**
-   ```bash
-   git clone https://github.com/saadabdullah-15/sql-data-warehouse-analytics.git
-   cd sql-data-warehouse-analytics
+1. **Reset the database**
+   ```powershell
+   sqlcmd -S .\SQLEXPRESS -i scripts\init_database.sql
    ```
-2. **Create or refresh the warehouse**
-   - Open `scripts/init_database.sql` in SSMS and execute it, or run:
-     ```powershell
-     sqlcmd -S .\SQLEXPRESS -i scripts\init_database.sql
-     ```
-     *(Replace the server with your instance name if different.)*
-   - The script drops any existing `DataWarehouse` database, recreates it, and provisions `bronze`, `silver`, and `gold` schemas.
-3. **Create landing tables**
-   - Run `scripts/bronze/create_bronze_tables.sql` to rebuild the raw staging tables with the latest metadata definitions.
-4. **Load raw data**
-   - Execute the stored procedure defined in `scripts/bronze/load_bronze_data.sql`:
-     ```sql
-     EXEC bronze.load_bronze;
-     ```
-     *(Override `@DataRoot` if your datasets directory lives elsewhere.)*
-5. **Create curated tables**
-   - Run `scripts/silver/create_silver_tables.sql` to provision conformed entities in the silver schema.
-6. **Promote data to silver**
-   - Execute the stored procedure defined in `scripts/silver/load_silver_data.sql`:
-     ```sql
-     EXEC silver.load_silver;
-     ```
-     *(Assumes the bronze layer has been loaded in the default database.)*
-7. **Iterate on transformations**
-   - Extend silver cleansing logic and begin building gold models in `scripts/gold/`, documenting lineage and business logic in `docs/`.
+   Replace the server name to match your environment. The script recreates the `DataWarehouse` database and its schemas.
+2. **Rebuild bronze landing tables**
+   ```powershell
+   sqlcmd -S .\SQLEXPRESS -d DataWarehouse -i scripts\bronze\create_bronze_tables.sql
+   ```
+3. **Load bronze data**
+   ```sql
+   EXEC bronze.load_bronze;                         -- uses the repo datasets path
+   EXEC bronze.load_bronze @DataRoot = N'D:\data';  -- example override
+   ```
+4. **Provision silver tables**
+   ```powershell
+   sqlcmd -S .\SQLEXPRESS -d DataWarehouse -i scripts\silver\create_silver_tables.sql
+   ```
+5. **Promote data to silver**
+   ```sql
+   EXEC silver.load_silver;
+   ```
+   The procedure truncates/reloads the silver tables, enriches the data, surfaces rejects, and prints row-count and quality summaries.
 
 ---
 
-## SQL Scripts
+## Data Quality & Monitoring
 
-- `scripts/init_database.sql` - Resets the warehouse and establishes schema scaffolding; safe to rerun in dev/test environments only.
-- `scripts/bronze/create_bronze_tables.sql` - Drops and recreates raw landing tables in the bronze schema.
-- `scripts/bronze/load_bronze_data.sql` - Stored procedure definition for bulk loading CSV files into the bronze schema.
-- `scripts/silver/create_silver_tables.sql` - Rebuilds curated tables in the silver schema.
-- `scripts/silver/load_silver_data.sql` - Stored procedure that standardizes and promotes bronze data into the silver layer.
-
-As additional transformations are added, group them by layer to keep the workflow discoverable.
+- Bronze loads print per-table timings and row counts, helping diagnose file or schema mismatches quickly.
+- Silver loads materialize rejects in `silver.crm_sales_details_rejects`, emit row-count summaries, and highlight missing product/customer mappings to guide data fixes.
+- Helper indexes in silver tables support join consistency checks and downstream performance tuning.
 
 ---
 
-## Dataset Notes
+## Roadmap / Next Steps
 
-- Files are checked in for reproducibility. Treat them as sample data; do not load into production systems.
-- CRM extracts include customer attributes (`cust_info.csv`), product dimensions (`prd_info.csv`), and transactional sales (`sales_details.csv`).
-- ERP extracts include customer master (`CUST_AZ12.csv`), location dimension (`LOC_A101.csv`), and product category reference data (`PX_CAT_G1V2.csv`).
-
----
-
-## Documentation & Roadmap
-
-- `docs/` contains empty placeholders for architecture diagrams, data catalogs, and naming conventions. Populate these as the warehouse evolves.
-- Planned next steps:
-  1. Bronze ingestion stored procedure implemented (`scripts/bronze/load_bronze_data.sql`); extend automation or monitoring as needed.
-  2. Expand silver cleansing rules and add automated quality checks (Great Expectations or custom T-SQL).
-  3. Publish gold star-schema models and analytical SQL (KPIs, reporting views).
-  4. Backfill documentation (data flow diagrams, glossary, and testing strategy).
+1. Design gold-layer dimensional models, aggregate tables, and KPI/reporting views to showcase analytics outputs.
+2. Add automated quality tests (e.g., T-SQL assertions or Great Expectations) under `tests/` and wire them into the load workflow.
+3. Document business definitions, lineage diagrams, and naming standards inside `docs/`.
+4. Introduce orchestration/automation (Python notebook, `.bat`/PowerShell runner, or CI job) to execute the full bronze -> silver pipeline end-to-end.
+5. Capture performance metrics and incremental-load strategies (e.g., delta detection or partitioned loads) for production readiness.
 
 ---
 
