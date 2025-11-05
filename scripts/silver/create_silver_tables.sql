@@ -1,10 +1,9 @@
 /*
 ===============================================================================
- File: create_silver_tables.sql
-===============================================================================
- Purpose:
-   Recreate tables in the [silver] schema with analytics-friendly data types,
-   minimal keys, and helper indexes. Keeps a dwh_create_date audit column.
+ Script:      create_silver_tables.sql
+ Project:     SQL Data Warehouse & Analytics
+ Purpose:     Recreate curated tables in the [silver] schema with analytics-friendly
+              data types, surrogate keys, and helper indexes.
 ===============================================================================
  Notes:
    - Money-like fields use decimal(18,2).
