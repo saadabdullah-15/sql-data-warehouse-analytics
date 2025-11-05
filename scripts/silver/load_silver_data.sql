@@ -1,19 +1,16 @@
 /*
 ===============================================================================
- File: load_silver_data.sql
+ Script:      load_silver_data.sql
+ Project:     SQL Data Warehouse & Analytics
+ Purpose:     Create or replace the [silver].[load_silver] stored procedure that
+              promotes curated data from [bronze] into the [silver] schema.
 ===============================================================================
- Purpose:
-   Create or replace the silver.load_silver stored procedure that loads the
-   [silver] layer from [bronze] with:
-     - canonical ID normalization (customer ids across CRM and ERP)
-     - product category enrichment from ERP category table
-     - robust date parsing for yyyymmdd ints
-     - money math with decimal(18,2)
-     - surrogate key resolution in sales (product_sk, cust_sk)
-     - rejects capture and load summary
-
  Usage:
    EXEC silver.load_silver;
+ Notes:
+   - Normalizes canonical IDs across CRM and ERP sources.
+   - Enriches products with ERP categories and date handling.
+   - Resolves surrogate keys, records rejects, and surfaces load metrics.
 ===============================================================================
 */
 
@@ -496,5 +493,3 @@ BEGIN
   END CATCH
 END;
 GO
-
-EXEC silver.load_silver;
