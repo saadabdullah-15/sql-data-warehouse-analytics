@@ -54,6 +54,10 @@ An end-to-end SQL Server warehouse sandbox that follows the Medallion (bronze ->
    sqlcmd -S .\SQLEXPRESS -d DataWarehouse -i scripts\bronze\create_bronze_tables.sql
    ```
 3. **Load bronze data**
+   ```powershell
+   sqlcmd -S .\SQLEXPRESS -d DataWarehouse -Q "EXEC bronze.load_bronze;"
+   ```
+   Pass a different datasets root when needed:
    ```sql
    EXEC bronze.load_bronze;                         -- uses the repo datasets path
    EXEC bronze.load_bronze @DataRoot = N'D:\data';  -- example override
@@ -63,6 +67,9 @@ An end-to-end SQL Server warehouse sandbox that follows the Medallion (bronze ->
    sqlcmd -S .\SQLEXPRESS -d DataWarehouse -i scripts\silver\create_silver_tables.sql
    ```
 5. **Promote data to silver**
+   ```powershell
+   sqlcmd -S .\SQLEXPRESS -d DataWarehouse -Q "EXEC silver.load_silver;"
+   ```
    ```sql
    EXEC silver.load_silver;
    ```
