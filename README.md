@@ -35,6 +35,9 @@ The solution follows a layered Medallion topology with clear separation of conce
 - **Gold** - Presentation-ready dimensional views built on top of the silver entities.
 
 Reference diagrams in `docs/` for a visual walkthrough:
+
+![Architecture Overview](docs/data_architecture.png)
+
 - `docs/data_architecture.png` - Logical architecture at a glance.
 - `docs/data_flow.png` - High-level load sequence across layers.
 - `docs/data_integration.png` - Integration touchpoints between CRM and ERP domains.
