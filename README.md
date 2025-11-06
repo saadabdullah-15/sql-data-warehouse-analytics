@@ -6,10 +6,12 @@ An end-to-end SQL Server warehouse sandbox that follows the Medallion (bronze ->
 
 ## Current Progress
 
-- **Environment reset** – `scripts/init_database.sql` drops and recreates the `DataWarehouse` database, provisions the bronze/silver/gold schemas, and guards against accidental production use.
-- **Bronze ingestion** – `scripts/bronze/create_bronze_tables.sql` rebuilds landing tables, while `scripts/bronze/load_bronze_data.sql` bulk-loads CRM and ERP CSVs with configurable file roots, UTF-8 handling, and runtime logging.
-- **Silver curation** – `scripts/silver/create_silver_tables.sql` defines analytics-friendly tables (surrogate keys, canonical IDs, helper indexes). `scripts/silver/load_silver_data.sql` standardizes dates and gender values, enriches products with ERP categories, resolves surrogate keys, and tracks rejects in `silver.crm_sales_details_rejects`.
-- **Datasets & docs** – `datasets/` includes reproducible CRM/ERP extracts. `docs/` and `tests/` are scaffolded for future documentation, lineage diagrams, and automated quality checks.
+- **Environment reset** – `scripts/init_database.sql` drops/rebuilds `DataWarehouse`, provisions the bronze/silver/gold schemas, and is safe to re-run in dev.
+- **Bronze ingestion** – `scripts/bronze/create_bronze_tables.sql` recreates staging tables; `scripts/bronze/load_bronze_data.sql` bulk-loads CRM/ERP CSVs with configurable paths, code page handling, and load telemetry.
+- **Silver curation** – `scripts/silver/create_silver_tables.sql` defines analytics-friendly structures (surrogate keys, indexes). `scripts/silver/load_silver_data.sql` normalises IDs, enriches products, resolves surrogate keys, and captures rejects/metrics.
+- **Gold presentation** – `scripts/gold/create_gold_views.sql` publishes `gold.dim_customers`, `gold.dim_products`, and `gold.fact_sales`, reusing the silver surrogate keys for BI-ready consumption.
+- **Operational quality** – `scripts/tests/run_quality_checks.sql` runs a consolidated suite of T-SQL checks covering duplicates, trims, domain validation, category enrichment, and fact/dimension referential integrity.
+- **Documentation** – `docs/` now contains a gold data catalog and project naming conventions to keep the warehouse consistent.
 
 ---
 
@@ -19,7 +21,7 @@ An end-to-end SQL Server warehouse sandbox that follows the Medallion (bronze ->
 | --- | --- | --- |
 | Bronze | Complete | Automated bulk load procedure (`bronze.load_bronze`) with parameterized paths and load telemetry. |
 | Silver | Complete | Stored procedure (`silver.load_silver`) performs canonicalization, enrichment, rejects capture, and row-count reporting. |
-| Gold | Planned | Star-schema models, aggregate views, and KPI reporting still to be designed. |
+| Gold | Complete | `create_gold_views.sql` rebuilds star-schema views (`dim_customers`, `dim_products`, `fact_sales`) for analytics. |
 
 ---
 
@@ -27,10 +29,10 @@ An end-to-end SQL Server warehouse sandbox that follows the Medallion (bronze ->
 
 - `datasets/source_crm/` – Customer, product, and sales detail extracts (CSV).
 - `datasets/source_erp/` – ERP customer, location, and product category reference data (CSV).
-- `docs/` – Placeholders for architecture diagrams, data catalog, and naming standards.
-- `scripts/` – SQL Server build + load scripts organised by Medallion layer, plus `init_database.sql`.
-- `tests/` – Reserved for data quality assertions or integration tests (currently empty).
-- `requirements.txt` – Optional Python dependencies for orchestration, validation, or visualization.
+- `docs/` - Project documentation: coding standards, naming conventions, gold-layer data catalog, and diagram stubs.
+- `scripts/` - SQL Server build + load scripts organised by Medallion layer, plus `init_database.sql`.
+- `scripts/tests/` - Quality checks (`run_quality_checks.sql`) that validate silver/gold completeness after a load.
+- `requirements.txt` - Optional Python dependencies for orchestration, validation, or visualization.
 
 ---
 
@@ -74,6 +76,16 @@ An end-to-end SQL Server warehouse sandbox that follows the Medallion (bronze ->
    EXEC silver.load_silver;
    ```
    The procedure truncates/reloads the silver tables, enriches the data, surfaces rejects, and prints row-count and quality summaries.
+6. **Publish gold views**
+   ```powershell
+   sqlcmd -S .\SQLEXPRESS -d DataWarehouse -i scripts\gold\create_gold_views.sql
+   ```
+   Rebuilds `gold.dim_customers`, `gold.dim_products`, and `gold.fact_sales` on top of the refreshed silver layer.
+7. **Run quality checks (optional but recommended)**
+   ```powershell
+   sqlcmd -S .\SQLEXPRESS -d DataWarehouse -i scripts\tests\run_quality_checks.sql
+   ```
+   Review any returned rows to investigate data anomalies before downstream use.
 
 ---
 
@@ -82,16 +94,17 @@ An end-to-end SQL Server warehouse sandbox that follows the Medallion (bronze ->
 - Bronze loads print per-table timings and row counts, helping diagnose file or schema mismatches quickly.
 - Silver loads materialize rejects in `silver.crm_sales_details_rejects`, emit row-count summaries, and highlight missing product/customer mappings to guide data fixes.
 - Helper indexes in silver tables support join consistency checks and downstream performance tuning.
+- `scripts/tests/run_quality_checks.sql` consolidates trim checks, domain validation, surrogate-key integrity, and fact/dimension referential tests for the current load cycle.
 
 ---
 
 ## Roadmap / Next Steps
 
-1. Design gold-layer dimensional models, aggregate tables, and KPI/reporting views to showcase analytics outputs.
-2. Add automated quality tests (e.g., T-SQL assertions or Great Expectations) under `tests/` and wire them into the load workflow.
-3. Document business definitions, lineage diagrams, and naming standards inside `docs/`.
-4. Introduce orchestration/automation (Python notebook, `.bat`/PowerShell runner, or CI job) to execute the full bronze -> silver pipeline end-to-end.
-5. Capture performance metrics and incremental-load strategies (e.g., delta detection or partitioned loads) for production readiness.
+1. Extend the gold layer with aggregates (e.g., monthly sales, customer retention) and additional fact views.
+2. Parameterise quality checks for automated CI runs and capture exceptions in a logging table.
+3. Expand documentation (lineage diagrams, architecture visuals) and link them from `docs/`.
+4. Explore orchestration (PowerShell, Azure Data Factory, or notebooks) to automate the end-to-end load including QA.
+5. Prototype incremental loading strategies (watermarks, change detection) to supplement the current full-refresh pattern.
 
 ---
 
