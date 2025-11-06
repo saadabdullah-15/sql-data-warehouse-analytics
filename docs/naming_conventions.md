@@ -87,6 +87,7 @@ This document outlines the naming conventions used for schemas, tables, views, c
   - `silver.load_silver`
 - Procedures are action-focused, combining the schema with a descriptive verb.
 - Parameters use PascalCase for readability (`@DataRoot`, `@FieldTerminator`, etc.).
+- QA and utility procedures should follow the same verb-first pattern (e.g., future `silver.run_quality_checks`) to remain discoverable.
 
 ---
 
