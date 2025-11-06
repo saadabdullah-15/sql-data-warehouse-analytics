@@ -14,7 +14,6 @@ A production-style SQL Server data warehouse sandbox built around the Medallion 
 - [Operational Checks](#operational-checks)
 - [Quality & Testing](#quality--testing)
 - [Documentation](#documentation)
-- [Roadmap](#roadmap)
 - [License](#license)
 - [Author](#author)
 
@@ -154,13 +153,6 @@ Run the steps below from the repository root, adjusting the server name as neede
 - `docs/naming_conventions.md` - Schema, table, column, and procedure naming patterns.
 - `docs/gold_data_catalog.md` - Business-facing documentation for the gold views.
 - `docs/quality_checks.md` - Overview of the validation approach and how to interpret failures.
-
-## Roadmap
-
-1. Add aggregate gold views (for example, monthly sales and retention cohorts) and supporting tests.
-2. Parameterise quality checks for CI/CD and persist outcomes to a logging table.
-3. Layer in orchestration (PowerShell, Azure Data Factory, notebooks) for fully automated refreshes.
-4. Introduce incremental loading patterns (watermarks and change tracking) to complement the current full refresh.
 
 ## License
 
