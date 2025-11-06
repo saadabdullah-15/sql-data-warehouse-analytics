@@ -63,4 +63,4 @@ The gold layer exposes business-friendly views that power analytics and reportin
 ### Usage Notes
 - All gold views are rebuilt by `scripts/gold/create_gold_views.sql`. Re-run after refreshing the silver layer.
 - Gold surrogate keys mirror the silver layer surrogate keys to simplify joins and lineage tracking.
-- Quality checks for silver and gold data are available under `scripts/tests/run_quality_checks.sql`.
+- Run the consolidated checks in `scripts/tests/run_quality_checks.sql` after rebuilding the gold views to confirm dimensional integrity before reporting refreshes.
