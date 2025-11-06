@@ -115,11 +115,14 @@ BEGIN
         CASE WHEN TRY_CONVERT(date, b.bdate) > CAST(GETDATE() AS date)          -- future birthdates to NULL
              THEN NULL ELSE TRY_CONVERT(date, b.bdate) END AS bdate,
         CASE
-            WHEN UPPER(TRIM(b.gen)) IN ('F','FEMALE') THEN 'Female'
-            WHEN UPPER(TRIM(b.gen)) IN ('M','MALE')   THEN 'Male'
+            WHEN gc.gen_clean IN ('F','FEMALE') THEN 'Female'
+            WHEN gc.gen_clean IN ('M','MALE')   THEN 'Male'
             ELSE 'Unknown'
         END AS gen
-    FROM bronze.erp_cust_az12 b;
+    FROM bronze.erp_cust_az12 b
+    CROSS APPLY (
+        SELECT UPPER(REPLACE(REPLACE(LTRIM(RTRIM(b.gen)), CHAR(10), ''), CHAR(13), '')) AS gen_clean
+    ) AS gc;
 
     SET @end_time = GETDATE();
     PRINT '>> cust_az12 loaded in ' + CAST(DATEDIFF(SECOND, @start_time, @end_time) AS nvarchar(10)) + ' sec';
@@ -157,12 +160,39 @@ BEGIN
     ),
     catkey AS (
       SELECT
-          *,
-          CONCAT(
-              PARSENAME(REPLACE(prd_key,'-','.'),5),'_',
-              PARSENAME(REPLACE(prd_key,'-','.'),4)
-          ) AS cat_id
-      FROM latest
+          lat.*,
+          clean.prd_key_clean,
+          dash.first_dash,
+          dash.second_dash,
+          CASE
+            WHEN dash.first_dash = 0 THEN NULL
+            ELSE CONCAT(
+                LEFT(clean.prd_key_clean, dash.first_dash - 1),
+                '_',
+                SUBSTRING(
+                    clean.prd_key_clean,
+                    dash.first_dash + 1,
+                    CASE
+                      WHEN dash.second_dash = 0
+                        THEN LEN(clean.prd_key_clean) - dash.first_dash
+                      ELSE dash.second_dash - dash.first_dash - 1
+                    END
+                )
+            )
+          END AS cat_id
+      FROM latest AS lat
+      CROSS APPLY (
+          SELECT UPPER(LTRIM(RTRIM(lat.prd_key))) AS prd_key_clean
+      ) AS clean
+      CROSS APPLY (
+          SELECT
+              CHARINDEX('-', clean.prd_key_clean) AS first_dash,
+              CASE
+                  WHEN CHARINDEX('-', clean.prd_key_clean) > 0
+                       THEN CHARINDEX('-', clean.prd_key_clean, CHARINDEX('-', clean.prd_key_clean) + 1)
+                  ELSE 0
+              END AS second_dash
+      ) AS dash
     )
     INSERT INTO silver.crm_prd_info
     (
@@ -171,11 +201,11 @@ BEGIN
     )
     SELECT
         c.prd_id,
-        key_raw.prd_key_clean AS prd_key,
+        c.prd_key_clean AS prd_key,
         CASE
-          WHEN key_parts.second_dash > 0
-            THEN SUBSTRING(key_raw.prd_key_clean, key_parts.second_dash + 1, LEN(key_raw.prd_key_clean))
-          ELSE key_raw.prd_key_clean
+          WHEN c.second_dash > 0
+            THEN SUBSTRING(c.prd_key_clean, c.second_dash + 1, LEN(c.prd_key_clean))
+          ELSE c.prd_key_clean
         END AS canon_prd_key,
         c.product_name,
         c.product_cost,
@@ -191,23 +221,12 @@ BEGIN
         c.cat_id,
         e.cat,
         e.subcat,
-        CASE WHEN e.maintenance = 'Yes' THEN 1
-             WHEN e.maintenance = 'No'  THEN 0
-             ELSE NULL END AS is_maintenance
+        CASE UPPER(REPLACE(REPLACE(LTRIM(RTRIM(e.maintenance)), CHAR(10), ''), CHAR(13), ''))
+             WHEN 'YES' THEN 1
+             WHEN 'NO'  THEN 0
+             ELSE NULL
+        END AS is_maintenance
     FROM catkey c
-    CROSS APPLY (
-        SELECT
-            UPPER(LTRIM(RTRIM(c.prd_key))) AS prd_key_clean,
-            CHARINDEX('-', UPPER(LTRIM(RTRIM(c.prd_key)))) AS first_dash
-    ) key_raw
-    CROSS APPLY (
-        SELECT
-            CASE
-              WHEN key_raw.first_dash > 0
-                THEN CHARINDEX('-', key_raw.prd_key_clean, key_raw.first_dash + 1)
-              ELSE 0
-            END AS second_dash
-    ) key_parts
     LEFT JOIN silver.erp_px_cat_g1v2 e
            ON e.id = c.cat_id;
 
